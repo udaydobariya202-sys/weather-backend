@@ -8,6 +8,9 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Import Routes
+const weatherRoutes = require('./routes/weatherRoutes');
+
 // Health check route
 app.get('/', (req, res) => {
   res.json({ 
@@ -20,6 +23,9 @@ app.get('/', (req, res) => {
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date() });
 });
+
+// Mount Routes
+app.use('/api/weather', weatherRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
