@@ -8,14 +8,11 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Import Routes
-const weatherRoutes = require('./routes/weatherRoutes');
-
 // Health check route
 app.get('/', (req, res) => {
   res.json({ 
     status: 'ok', 
-    message: 'Weather App Backend Running',
+    message: 'Invoice App Backend Running',
     timestamp: new Date()
   });
 });
@@ -25,7 +22,12 @@ app.get('/health', (req, res) => {
 });
 
 // Mount Routes
-app.use('/api/weather', weatherRoutes);
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/invoices', require('./routes/invoices'));
+app.use('/api/contacts', require('./routes/contacts'));
+app.use('/api/tools', require('./routes/tools'));
+app.use('/api/users', require('./routes/users'));
+app.use('/api/analytics', require('./routes/analytics'));
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
