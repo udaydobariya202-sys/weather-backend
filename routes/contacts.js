@@ -38,12 +38,12 @@ router.get('/', requireAuth, async (req, res) => {
 /**
  * POST /api/contacts
  * Create a new contact
- * Body: { name, phone, location }
+ * Body: { name, mobile, village }
  */
 router.post('/', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { name, phone, location } = req.body;
+    const { name, mobile, village } = req.body;
 
     if (!name) {
       return res.status(400).json({
@@ -57,8 +57,8 @@ router.post('/', requireAuth, async (req, res) => {
     const contactData = {
       user_id: userId,
       name,
-      phone: phone || null,
-      location: location || null
+      mobile: mobile || null,
+      village: village || null
     };
 
     const contact = await createContact(contactData);
@@ -83,13 +83,13 @@ router.post('/', requireAuth, async (req, res) => {
 /**
  * PUT /api/contacts/:id
  * Update a contact
- * Body: { name, phone, location }
+ * Body: { name, mobile, village }
  */
 router.put('/:id', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
     const contactId = req.params.id;
-    const { name, phone, location } = req.body;
+    const { name, mobile, village } = req.body;
 
     // Check if contact exists and belongs to user
     const contacts = await getContactsByUserId(userId);
@@ -106,8 +106,8 @@ router.put('/:id', requireAuth, async (req, res) => {
 
     const updates = {};
     if (name !== undefined) updates.name = name;
-    if (phone !== undefined) updates.phone = phone;
-    if (location !== undefined) updates.location = location;
+    if (mobile !== undefined) updates.mobile = mobile;
+    if (village !== undefined) updates.village = village;
 
     const updatedContact = await updateContact(contactId, updates);
 

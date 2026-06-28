@@ -4,6 +4,7 @@ const { requireAuth } = require('../lib/auth');
 const {
   getInvoicesByUserId,
   getInvoiceById,
+  getNextInvoiceNumber,
   createInvoice,
   updateInvoice,
   deleteInvoice,
@@ -45,39 +46,49 @@ router.get('/', requireAuth, async (req, res) => {
 /**
  * POST /api/invoices
  * Create a new invoice
- * Body: { contact_id, invoice_number, status, invoice_date, items: [] }
+ * Body: { farmer_name, farmer_mobile, farmer_village, items: [{ tool_name, area_bigha, rate, amount }], diesel_charge, discount, subtotal, total_amount, invoice_date, status }
  */
 router.post('/', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { contact_id, invoice_number, status, invoice_date, items } = req.body;
+    const { 
+      farmer_name, 
+      farmer_mobile, 
+      farmer_village, 
+      items, 
+      diesel_charge, 
+      discount, 
+      subtotal, 
+      total_amount, 
+      invoice_date, 
+      status 
+    } = req.body;
 
-    if (!invoice_number) {
+    if (!farmer_name) {
       return res.status(400).json({
         success: false,
         data: null,
-        error: 'invoice_number is required',
+        error: 'farmer_name is required',
         timestamp: new Date().toISOString()
       });
     }
 
-    // Calculate total amount from items
-    let totalAmount = 0;
-    if (items && Array.isArray(items)) {
-      items.forEach(item => {
-        const amount = (parseFloat(item.hours) || 0) * (parseFloat(item.rate) || 0);
-        totalAmount += amount;
-      });
-    }
+    // Auto-generate invoice number
+    const invoice_number = await getNextInvoiceNumber(userId);
 
     const invoiceData = {
       user_id: userId,
-      contact_id,
       invoice_number,
-      status: status || 'pending',
-      total_amount: totalAmount,
+      farmer_name,
+      farmer_mobile: farmer_mobile || null,
+      farmer_village: farmer_village || null,
+      subtotal: subtotal || 0,
+      diesel_charge: diesel_charge || 0,
+      discount: discount || 0,
+      total_amount: total_amount || 0,
       paid_amount: 0,
-      pending_amount: totalAmount,
+      pending_amount: total_amount || 0,
+      status: status || 'pending',
       invoice_date: invoice_date || new Date().toISOString().split('T')[0]
     };
 
@@ -87,12 +98,10 @@ router.post('/', requireAuth, async (req, res) => {
     if (items && Array.isArray(items) && items.length > 0) {
       const itemsData = items.map(item => ({
         invoice_id: invoice.id,
-        tool_id: item.tool_id,
         tool_name: item.tool_name,
-        hours: item.hours,
-        rate: item.rate,
-        amount: (parseFloat(item.hours) || 0) * (parseFloat(item.rate) || 0),
-        description: item.description
+        area_bigha: item.area_bigha || 0,
+        rate: item.rate || 0,
+        amount: item.amount || 0
       }));
 
       await createInvoiceItems(itemsData);
@@ -168,13 +177,24 @@ router.get('/:id', requireAuth, async (req, res) => {
 /**
  * PUT /api/invoices/:id
  * Update an invoice
- * Body: { contact_id, invoice_number, status, invoice_date, items }
+ * Body: { farmer_name, farmer_mobile, farmer_village, items: [{ tool_name, area_bigha, rate, amount }], diesel_charge, discount, subtotal, total_amount, invoice_date, status }
  */
 router.put('/:id', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
     const invoiceId = req.params.id;
-    const { contact_id, invoice_number, status, invoice_date, items } = req.body;
+    const { 
+      farmer_name, 
+      farmer_mobile, 
+      farmer_village, 
+      items, 
+      diesel_charge, 
+      discount, 
+      subtotal, 
+      total_amount, 
+      invoice_date, 
+      status 
+    } = req.body;
 
     // Check if invoice exists and belongs to user
     const existingInvoice = await getInvoiceById(invoiceId);
@@ -196,24 +216,19 @@ router.put('/:id', requireAuth, async (req, res) => {
       });
     }
 
-    // Calculate total amount from items
-    let totalAmount = 0;
-    if (items && Array.isArray(items)) {
-      items.forEach(item => {
-        const amount = (parseFloat(item.hours) || 0) * (parseFloat(item.rate) || 0);
-        totalAmount += amount;
-      });
-    }
-
     const updates = {};
-    if (contact_id !== undefined) updates.contact_id = contact_id;
-    if (invoice_number !== undefined) updates.invoice_number = invoice_number;
-    if (status !== undefined) updates.status = status;
-    if (invoice_date !== undefined) updates.invoice_date = invoice_date;
-    if (totalAmount > 0) {
-      updates.total_amount = totalAmount;
-      updates.pending_amount = totalAmount - (parseFloat(existingInvoice.paid_amount) || 0);
+    if (farmer_name !== undefined) updates.farmer_name = farmer_name;
+    if (farmer_mobile !== undefined) updates.farmer_mobile = farmer_mobile;
+    if (farmer_village !== undefined) updates.farmer_village = farmer_village;
+    if (diesel_charge !== undefined) updates.diesel_charge = diesel_charge;
+    if (discount !== undefined) updates.discount = discount;
+    if (subtotal !== undefined) updates.subtotal = subtotal;
+    if (total_amount !== undefined) {
+      updates.total_amount = total_amount;
+      updates.pending_amount = total_amount - (parseFloat(existingInvoice.paid_amount) || 0);
     }
+    if (invoice_date !== undefined) updates.invoice_date = invoice_date;
+    if (status !== undefined) updates.status = status;
 
     const updatedInvoice = await updateInvoice(invoiceId, updates);
 
@@ -226,12 +241,10 @@ router.put('/:id', requireAuth, async (req, res) => {
       if (items.length > 0) {
         const itemsData = items.map(item => ({
           invoice_id: invoiceId,
-          tool_id: item.tool_id,
           tool_name: item.tool_name,
-          hours: item.hours,
-          rate: item.rate,
-          amount: (parseFloat(item.hours) || 0) * (parseFloat(item.rate) || 0),
-          description: item.description
+          area_bigha: item.area_bigha || 0,
+          rate: item.rate || 0,
+          amount: item.amount || 0
         }));
 
         await createInvoiceItems(itemsData);
@@ -309,13 +322,13 @@ router.delete('/:id', requireAuth, async (req, res) => {
 /**
  * PUT /api/invoices/:id/status
  * Update invoice status (paid/pending)
- * Body: { status, paid_amount }
+ * Body: { status }
  */
 router.put('/:id/status', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
     const invoiceId = req.params.id;
-    const { status, paid_amount } = req.body;
+    const { status } = req.body;
 
     if (!status || !['paid', 'pending'].includes(status)) {
       return res.status(400).json({
@@ -347,12 +360,14 @@ router.put('/:id/status', requireAuth, async (req, res) => {
     }
 
     const updates = { status };
-    if (paid_amount !== undefined) {
-      updates.paid_amount = parseFloat(paid_amount);
-      updates.pending_amount = existingInvoice.total_amount - parseFloat(paid_amount);
+    if (status === 'paid') {
+      updates.paid_amount = existingInvoice.total_amount;
+      updates.pending_amount = 0;
+    } else {
+      updates.paid_amount = 0;
+      updates.pending_amount = existingInvoice.total_amount;
     }
 
-    const updatedInvoice = await updateInvoiceStatus(invoiceId, status);
     await updateInvoice(invoiceId, updates);
 
     // Fetch the complete updated invoice

@@ -67,7 +67,7 @@ router.post('/', requireAuth, async (req, res) => {
       user_id: userId,
       name,
       rate: parseFloat(rate),
-      rate_type: rate_type || 'hr'
+      rate_type: rate_type || 'bigha'
     };
 
     const tool = await createTool(toolData);

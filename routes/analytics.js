@@ -4,8 +4,7 @@ const { verifyToken } = require('../lib/auth');
 const {
   getAnalyticsOverview,
   getAllUsers,
-  getAllInvoices,
-  logAnalyticsEvent
+  getAllInvoices
 } = require('../lib/supabase');
 
 /**
