@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuth } = require('../lib/auth');
+const { verifyToken } = require('../lib/auth');
 const {
   getAnalyticsOverview,
   getAllUsers,
@@ -27,18 +27,18 @@ router.get('/overview', async (req, res) => {
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-    const userId = decoded.id || decoded.sub;
+    const decoded = verifyToken(token);
 
-    if (!userId) {
+    if (!decoded) {
       return res.status(401).json({
         success: false,
         data: null,
-        error: 'Invalid token',
+        error: 'Invalid or expired token',
         timestamp: new Date().toISOString()
       });
     }
 
+    const userId = decoded.id || decoded.sub;
     const overview = await getAnalyticsOverview(userId);
 
     res.json({
