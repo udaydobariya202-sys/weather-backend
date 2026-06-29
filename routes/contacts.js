@@ -3,6 +3,8 @@ const router = express.Router();
 const { requireAuth } = require('../lib/auth');
 const {
   getContactsByUserId,
+  getAllContacts,
+  getContactById,
   createContact,
   updateContact,
   deleteContact
@@ -15,8 +17,9 @@ const {
 router.get('/', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    const isAdmin = req.user.role === 'admin';
 
-    const contacts = await getContactsByUserId(userId);
+    const contacts = isAdmin ? await getAllContacts() : await getContactsByUserId(userId);
 
     res.json({
       success: true,
@@ -88,18 +91,26 @@ router.post('/', requireAuth, async (req, res) => {
 router.put('/:id', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    const isAdmin = req.user.role === 'admin';
     const contactId = req.params.id;
     const { name, mobile, village } = req.body;
 
-    // Check if contact exists and belongs to user
-    const contacts = await getContactsByUserId(userId);
-    const contact = contacts.find(c => c.id === contactId);
+    const contact = await getContactById(contactId);
 
     if (!contact) {
       return res.status(404).json({
         success: false,
         data: null,
         error: 'Contact not found',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (!isAdmin && contact.user_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        data: null,
+        error: 'Access denied',
         timestamp: new Date().toISOString()
       });
     }
@@ -135,17 +146,25 @@ router.put('/:id', requireAuth, async (req, res) => {
 router.delete('/:id', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    const isAdmin = req.user.role === 'admin';
     const contactId = req.params.id;
 
-    // Check if contact exists and belongs to user
-    const contacts = await getContactsByUserId(userId);
-    const contact = contacts.find(c => c.id === contactId);
+    const contact = await getContactById(contactId);
 
     if (!contact) {
       return res.status(404).json({
         success: false,
         data: null,
         error: 'Contact not found',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (!isAdmin && contact.user_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        data: null,
+        error: 'Access denied',
         timestamp: new Date().toISOString()
       });
     }

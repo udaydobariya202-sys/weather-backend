@@ -3,6 +3,7 @@ const router = express.Router();
 const { requireAuth } = require('../lib/auth');
 const {
   getInvoicesByUserId,
+  getAllInvoices,
   getInvoiceById,
   getNextInvoiceNumber,
   createInvoice,
@@ -21,10 +22,11 @@ const {
 router.get('/', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    const isAdmin = req.user.role === 'admin';
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
 
-    const invoices = await getInvoicesByUserId(userId, page, limit);
+    const invoices = isAdmin ? await getAllInvoices() : await getInvoicesByUserId(userId, page, limit);
 
     res.json({
       success: true,
@@ -86,8 +88,8 @@ router.post('/', requireAuth, async (req, res) => {
       diesel_charge: diesel_charge || 0,
       discount: discount || 0,
       total_amount: total_amount || 0,
-      paid_amount: 0,
-      pending_amount: total_amount || 0,
+      paid_amount: status === 'paid' ? total_amount || 0 : 0,
+      pending_amount: status === 'paid' ? 0 : total_amount || 0,
       status: status || 'pending',
       invoice_date: invoice_date || new Date().toISOString().split('T')[0]
     };
@@ -134,6 +136,7 @@ router.post('/', requireAuth, async (req, res) => {
 router.get('/:id', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    const isAdmin = req.user.role === 'admin';
     const invoiceId = req.params.id;
 
     const invoice = await getInvoiceById(invoiceId);
@@ -147,8 +150,8 @@ router.get('/:id', requireAuth, async (req, res) => {
       });
     }
 
-    // Verify user owns this invoice
-    if (invoice.user_id !== userId) {
+    // Verify user owns this invoice unless admin
+    if (!isAdmin && invoice.user_id !== userId) {
       return res.status(403).json({
         success: false,
         data: null,
@@ -182,6 +185,7 @@ router.get('/:id', requireAuth, async (req, res) => {
 router.put('/:id', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    const isAdmin = req.user.role === 'admin';
     const invoiceId = req.params.id;
     const { 
       farmer_name, 
@@ -207,7 +211,7 @@ router.put('/:id', requireAuth, async (req, res) => {
       });
     }
 
-    if (existingInvoice.user_id !== userId) {
+    if (!isAdmin && existingInvoice.user_id !== userId) {
       return res.status(403).json({
         success: false,
         data: null,
@@ -278,6 +282,7 @@ router.put('/:id', requireAuth, async (req, res) => {
 router.delete('/:id', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    const isAdmin = req.user.role === 'admin';
     const invoiceId = req.params.id;
 
     // Check if invoice exists and belongs to user
@@ -291,7 +296,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
       });
     }
 
-    if (existingInvoice.user_id !== userId) {
+    if (!isAdmin && existingInvoice.user_id !== userId) {
       return res.status(403).json({
         success: false,
         data: null,
@@ -327,6 +332,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
 router.put('/:id/status', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    const isAdmin = req.user.role === 'admin';
     const invoiceId = req.params.id;
     const { status } = req.body;
 
@@ -350,7 +356,7 @@ router.put('/:id/status', requireAuth, async (req, res) => {
       });
     }
 
-    if (existingInvoice.user_id !== userId) {
+    if (!isAdmin && existingInvoice.user_id !== userId) {
       return res.status(403).json({
         success: false,
         data: null,

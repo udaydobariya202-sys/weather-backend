@@ -3,6 +3,8 @@ const router = express.Router();
 const { requireAuth } = require('../lib/auth');
 const {
   getToolsByUserId,
+  getAllTools,
+  getToolById,
   createTool,
   updateTool,
   deleteTool
@@ -15,8 +17,9 @@ const {
 router.get('/', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    const isAdmin = req.user.role === 'admin';
 
-    const tools = await getToolsByUserId(userId);
+    const tools = isAdmin ? await getAllTools() : await getToolsByUserId(userId);
 
     res.json({
       success: true,
@@ -97,18 +100,26 @@ router.post('/', requireAuth, async (req, res) => {
 router.put('/:id', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    const isAdmin = req.user.role === 'admin';
     const toolId = req.params.id;
     const { name, rate, rate_type } = req.body;
 
-    // Check if tool exists and belongs to user
-    const tools = await getToolsByUserId(userId);
-    const tool = tools.find(t => t.id === toolId);
+    const tool = await getToolById(toolId);
 
     if (!tool) {
       return res.status(404).json({
         success: false,
         data: null,
         error: 'Tool not found',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (!isAdmin && tool.user_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        data: null,
+        error: 'Access denied',
         timestamp: new Date().toISOString()
       });
     }
@@ -144,17 +155,25 @@ router.put('/:id', requireAuth, async (req, res) => {
 router.delete('/:id', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    const isAdmin = req.user.role === 'admin';
     const toolId = req.params.id;
 
-    // Check if tool exists and belongs to user
-    const tools = await getToolsByUserId(userId);
-    const tool = tools.find(t => t.id === toolId);
+    const tool = await getToolById(toolId);
 
     if (!tool) {
       return res.status(404).json({
         success: false,
         data: null,
         error: 'Tool not found',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (!isAdmin && tool.user_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        data: null,
+        error: 'Access denied',
         timestamp: new Date().toISOString()
       });
     }

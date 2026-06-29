@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = 'your-secret-key-123';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-123';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@weather.com';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Admin123!';
 
 /**
  * POST /api/auth/login
@@ -12,14 +14,14 @@ const JWT_SECRET = 'your-secret-key-123';
 router.post('/login', (req, res) => {
   const { email, password } = req.body;
 
-  if (email === 'admin@weather.com' && password === 'Admin123!') {
-    const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '24h' });
+  if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+    const token = jwt.sign({ email, role: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
     return res.status(200).json({
       success: true,
       token,
       user: {
         id: 'admin-id-123',
-        email: email
+        email
       }
     });
   }
@@ -73,7 +75,8 @@ router.get('/verify', verifyTokenMiddleware, (req, res) => {
     success: true,
     user: {
       id: 'admin-id-123',
-      email: req.user.email
+      email: req.user.email,
+      role: req.user.role || 'admin'
     }
   });
 });

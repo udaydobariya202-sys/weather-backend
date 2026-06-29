@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { verifyToken } = require('../lib/auth');
+const { requireAuth } = require('../lib/auth');
 const {
   getAnalyticsOverview,
   getAllUsers,
@@ -12,33 +12,11 @@ const {
  * Get analytics overview for authenticated user
  * Returns: { totalInvoices, totalRevenue, collectedAmount, pendingAmount, totalContacts, totalTools, recentInvoices, monthlyRevenue }
  */
-router.get('/overview', async (req, res) => {
+router.get('/overview', requireAuth, async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        success: false,
-        data: null,
-        error: 'No token provided',
-        timestamp: new Date().toISOString()
-      });
-    }
-
-    const token = authHeader.split(' ')[1];
-    const decoded = verifyToken(token);
-
-    if (!decoded) {
-      return res.status(401).json({
-        success: false,
-        data: null,
-        error: 'Invalid or expired token',
-        timestamp: new Date().toISOString()
-      });
-    }
-
-    const userId = decoded.id || decoded.sub;
-    const overview = await getAnalyticsOverview(userId);
+    const userId = req.user.id;
+    const isAdmin = req.user.role === 'admin';
+    const overview = await getAnalyticsOverview(isAdmin ? null : userId);
 
     res.json({
       success: true,
@@ -61,9 +39,17 @@ router.get('/overview', async (req, res) => {
  * GET /api/analytics/users
  * Get all users (for admin panel)
  */
-router.get('/users', async (req, res) => {
+router.get('/users', requireAuth, async (req, res) => {
   try {
-    // Note: In production, you should add admin role verification here
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        data: null,
+        error: 'Access denied',
+        timestamp: new Date().toISOString()
+      });
+    }
+
     const users = await getAllUsers();
 
     res.json({
@@ -87,9 +73,17 @@ router.get('/users', async (req, res) => {
  * GET /api/analytics/invoices
  * Get all invoices (for admin panel)
  */
-router.get('/invoices', async (req, res) => {
+router.get('/invoices', requireAuth, async (req, res) => {
   try {
-    // Note: In production, you should add admin role verification here
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        data: null,
+        error: 'Access denied',
+        timestamp: new Date().toISOString()
+      });
+    }
+
     const invoices = await getAllInvoices();
 
     res.json({
